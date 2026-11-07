@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "glime"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Usage Claude (session 5 h et semaine), watts, température du processeur et tableau de bord des capteurs ; une flèche replie le tout",
+        "Icon": "chronometer",
+        "Id": "org.glime.claudeusage",
+        "License": "MIT",
+        "Name": "Usage Claude",
+        "Version": "2.0"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

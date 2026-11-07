@@ -1,0 +1,5 @@
+# Lets one group read the RAPL energy counters (root-only by default), so the
+# widget can show the whole laptop's power draw, even on AC.
+# Replace YOUR_GROUP with your user's group (`id -gn`), then:
+#   sudo cp 99-rapl-psys.rules /etc/udev/rules.d/ && sudo udevadm trigger -s powercap
+ACTION=="add", SUBSYSTEM=="powercap", KERNEL=="intel-rapl:0|intel-rapl:1", RUN+="/usr/bin/chgrp YOUR_GROUP /sys%p/energy_uj", RUN+="/usr/bin/chmod 0440 /sys%p/energy_uj"
