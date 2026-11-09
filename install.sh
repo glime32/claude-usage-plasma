@@ -1,12 +1,14 @@
 #!/bin/sh
-# Installe (ou met à jour) le widget « Usage Claude » et son script.
+# Installe (ou met à jour) le widget « Usage Claude » et son assistant claude-usage (Rust).
 #   ./install.sh            installe
 #   ./install.sh --test     + envoie une notification de test (PC et téléphone)
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 
+command -v cargo >/dev/null || { echo "cargo introuvable : installe rust (sudo pacman -S rust)"; exit 1; }
+(cd "$here/claude-usage" && cargo build --release --locked)
 mkdir -p "$HOME/.local/bin"
-install -m 755 "$here/bin/claude-usage" "$HOME/.local/bin/claude-usage"
+install -m 755 "$here/claude-usage/target/release/claude-usage" "$HOME/.local/bin/claude-usage"
 
 if kpackagetool6 --type Plasma/Applet --show org.glime.claudeusage >/dev/null 2>&1; then
   kpackagetool6 --type Plasma/Applet --upgrade "$here/plasmoid"

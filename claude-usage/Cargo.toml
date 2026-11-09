@@ -1,0 +1,16 @@
+[package]
+name = "claude-usage"
+version = "2.0.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }
+libc = "0.2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

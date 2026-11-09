@@ -4,12 +4,14 @@
 // Économie : aucune animation. Le panneau n'est redessiné que quand une valeur
 // affichée change vraiment (hystérésis), jamais « à chaque image ». Replié : plus
 // aucune lecture de watts ni de température (l'usage Claude continue, pour les notifs).
+import QtCore
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.plasma5support as P5Support
+import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
 
 PlasmoidItem {
@@ -207,6 +209,62 @@ PlasmoidItem {
         + (collapsed ? "" : "\nClic sur la température : tableau de bord des capteurs")
         + "\nFlèche : " + (collapsed ? "afficher (et actualiser)" : "cacher") + " l'usage, les watts et la température"
 
+    // ───────────── Fenêtres Claude ouvertes (une pastille par fenêtre) ─────────────
+    // Lit toutes les 2 s les petits fichiers d'état écrits par le menu Claude
+    // (claude-launcher-kde) et ne change l'affichage que si quelque chose a changé.
+    function localPath(loc) { return StandardPaths.writableLocation(loc).toString().replace(/^file:\/\//, "") }
+    readonly property string claudeRun: localPath(StandardPaths.RuntimeLocation) + "/claude-couleurs/"
+    readonly property string claudeColors: localPath(StandardPaths.GenericConfigLocation) + "/claude-window/couleurs"
+    property var claudePalette: []   // [{nom, hex}] dans l'ordre d'attribution
+    property var claudes: []         // fenêtres ouvertes : {nom, hex, pid, titre, etat}
+    property string claudesKey: ""
+    function readSmall(path, cb) {
+        const x = new XMLHttpRequest()
+        x.onreadystatechange = () => { if (x.readyState === XMLHttpRequest.DONE) cb(x.status === 200 ? x.responseText : "") }
+        x.open("GET", "file://" + path)
+        x.send()
+    }
+    function scanClaudes() {
+        if (!claudePalette.length) {
+            readSmall(claudeColors, t => {
+                claudePalette = t.split("\n").filter(l => l.trim()).map(l => {
+                    const [nom, rgb] = l.trim().split(/\s+/)
+                    const c = rgb.split(",").map(Number)
+                    return { nom: nom, hex: "#" + c.map(v => v.toString(16).padStart(2, "0")).join("") }
+                })
+            })
+            return
+        }
+        const found = []
+        let pending = claudePalette.length
+        const done = () => {
+            if (--pending > 0) return
+            const order = claudePalette.map(c => c.nom)
+            found.sort((a, b) => order.indexOf(a.nom) - order.indexOf(b.nom))
+            const key = JSON.stringify(found)
+            if (key !== claudesKey) { claudesKey = key; claudes = found }
+        }
+        for (const c of claudePalette) {
+            readSmall(claudeRun + c.nom, pidText => {
+                const pid = pidText.trim()
+                if (!pid) return done()
+                readSmall("/proc/" + pid + "/cmdline", cmd => {
+                    if (cmd.indexOf("claude-code-" + c.nom) < 0) return done()
+                    readSmall(claudeRun + c.nom + ".titre", titre => readSmall(claudeRun + c.nom + ".etat", etat => {
+                        found.push({ nom: c.nom, hex: c.hex, pid: pid, titre: titre.trim() || "Claude Code", etat: etat.trim() })
+                        done()
+                    }))
+                })
+            })
+        }
+    }
+    function claudeState(e) {
+        return e === "travail" ? "Claude travaille"
+             : e === "fini" ? "Claude a fini : à toi"
+             : e === "attente" ? "Claude attend ton accord"
+             : "Menu ou en attente"
+    }
+
     preferredRepresentation: compactRepresentation
     Plasmoid.icon: "chronometer"
     toolTipMainText: "Usage Claude"
@@ -306,6 +364,48 @@ PlasmoidItem {
             // sans hauteur propre) aurait une zone de clic de 0 px.
             height: parent.height
             spacing: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing  // même écart qu'entre les icônes de la barre
+
+            // Pastilles des fenêtres Claude (toujours visibles, même replié).
+            // Pleine = à toi de jouer, anneau = Claude travaille, « ! » = attend ton accord.
+            // Clic : met la fenêtre au premier plan.
+            RowLayout {
+                visible: root.claudes.length > 0
+                spacing: Math.round(Kirigami.Units.smallSpacing / 2)
+                Repeater {
+                    model: root.claudes
+                    delegate: MouseArea {
+                        id: dot
+                        required property var modelData
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: Math.round(compact.ring * 0.6)
+                        onClicked: claudeExec.connectSource('"$HOME/.local/bin/claude-focus" ' + modelData.pid)
+                        PlasmaCore.ToolTipArea {
+                            anchors.fill: parent
+                            mainText: dot.modelData.titre
+                            subText: root.claudeState(dot.modelData.etat) + "\nClic : afficher la fenêtre"
+                        }
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: Math.round(compact.ring * 0.5)
+                            height: width
+                            radius: width / 2
+                            readonly property bool working: dot.modelData.etat === "travail"
+                            color: working ? "transparent" : dot.modelData.hex
+                            border.color: dot.modelData.hex
+                            border.width: working ? Math.max(2, Math.round(width / 5)) : 0
+                            opacity: dot.modelData.etat === "" ? 0.45 : 1
+                            Text {
+                                anchors.centerIn: parent
+                                visible: dot.modelData.etat === "attente"
+                                text: "!"
+                                color: "#000000"
+                                font.weight: Font.Black
+                                font.pixelSize: Math.round(parent.width * 0.8)
+                            }
+                        }
+                    }
+                }
+            }
 
             RowLayout {
                 visible: compact.unfolded
@@ -593,6 +693,15 @@ PlasmoidItem {
     // Watts : 1 lecture/s en lecture directe (quasi gratuite), rien si replié ;
     // sinon c'est le mode « cat » ci-dessus.
     Timer { interval: 1000; repeat: true; running: root.xhrOk && !root.collapsed; triggeredOnStart: true; onTriggered: root.sample() }
+
+    // Fenêtres Claude : quelques petits fichiers lus toutes les 2 s (lecture directe, sans processus).
+    Timer { interval: 2000; repeat: true; running: true; triggeredOnStart: true; onTriggered: root.scanClaudes() }
+    P5Support.DataSource {
+        id: claudeExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => disconnectSource(source)
+    }
 
     Component.onCompleted: refresh()
 }
