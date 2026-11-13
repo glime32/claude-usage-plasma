@@ -149,7 +149,7 @@ PlasmoidItem {
     }
 
     function sample() {
-        // La lecture d'il y a 1 s n'a jamais répondu : lecture directe interdite -> mode « cat ».
+        // La lecture précédente n'a jamais répondu : lecture directe interdite -> mode « cat ».
         if (xhrPending > 0) { xhrOk = false; return }
         if (psysOk || Date.now() >= psysRetryAt) {
             readFile(psysPath, t => {
@@ -690,9 +690,9 @@ PlasmoidItem {
     Timer { id: resetTimer; repeat: false; onTriggered: root.refresh() }
     // Nouvel essai après 150 s : le script refuse de rappeler l'API moins de 2 min après.
     Timer { id: retry; interval: 150000; repeat: false; onTriggered: root.refresh() }
-    // Watts : 1 lecture/s en lecture directe (quasi gratuite), rien si replié ;
+    // Watts : 1 lecture toutes les 3 s en lecture directe, rien si replié ;
     // sinon c'est le mode « cat » ci-dessus.
-    Timer { interval: 1000; repeat: true; running: root.xhrOk && !root.collapsed; triggeredOnStart: true; onTriggered: root.sample() }
+    Timer { interval: 3000; repeat: true; running: root.xhrOk && !root.collapsed; triggeredOnStart: true; onTriggered: root.sample() }
 
     // Fenêtres Claude : quelques petits fichiers lus toutes les 2 s (lecture directe, sans processus).
     Timer { interval: 2000; repeat: true; running: true; triggeredOnStart: true; onTriggered: root.scanClaudes() }
