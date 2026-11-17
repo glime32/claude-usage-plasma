@@ -24,6 +24,18 @@ Quand une limite revient à 0 %, tu reçois une notification sur le bureau. Avec
 
 <p align="center"><img src="docs/status.png" width="700" alt="claude-usage --status"></p>
 
+## Google Agenda (facultatif)
+
+`claude-usage` peut aussi mettre un événement dans ton agenda Google principal à chaque réinitialisation de la semaine, et à celle des 5 h quand la limite 5 h a atteint 100 %. Un téléphone synchronisé avec le compte l'affiche aussi. L'événement est déplacé si l'heure change, et reste dans l'agenda une fois passé. Chacun porte une propriété privée `claude-usage` : un événement sans elle n'est jamais modifié ni supprimé.
+
+À faire une seule fois :
+
+1. Dans la console Google Cloud : crée un projet, active l'API Google Agenda, configure l'écran de consentement (Externe) et passe-le « en production ». En mode « test », Google coupe l'accès au bout de 7 jours.
+2. Crée un client OAuth de type « Application de bureau » et télécharge son fichier JSON.
+3. Lance `claude-usage --agenda chemin/vers/client_secret.json` et autorise l'accès dans le navigateur. Google prévient que l'appli n'est pas validée : c'est la tienne, choisis « Paramètres avancés » puis continue.
+
+La synchro de l'agenda ne tourne que juste après un appel d'usage réussi, et n'appelle Google que s'il faut ajouter, déplacer ou retirer un événement.
+
 ## Installation
 
 Il faut KDE Plasma 6, Rust pour compiler l'assistant (`sudo pacman -S rust`), `curl`, et [Claude Code](https://claude.com/claude-code) connecté au moins une fois (le widget réutilise sa connexion).
@@ -52,6 +64,10 @@ Pour le téléphone : installe l'appli ntfy, abonne-toi à un topic long et alé
 
 > [!NOTE]
 > Les chiffres d'usage viennent de l'adresse qu'utilise claude.ai pour sa propre page d'utilisation (`/api/oauth/usage`). Ce n'est pas une API documentée : elle peut changer. Quand le jeton d'accès a expiré, l'assistant le renouvelle comme le fait Claude Code et le réécrit dans `~/.claude/.credentials.json`.
+
+## Confidentialité
+
+Tout reste sur ton PC. L'assistant ne parle qu'à Anthropic (les chiffres d'usage), à ton serveur ntfy si tu as mis un topic, et à Google Agenda si tu l'as branché. Le jeton Google est rangé dans `~/.config/claude-usage/google.json`, lisible par toi seul. L'appli ne demande l'accès qu'aux événements des agendas dont tu es propriétaire, et n'écrit, ne déplace ou ne supprime que ses propres événements. Rien n'est envoyé ailleurs. Pour débrancher l'agenda : supprime ce fichier et retire l'appli sur https://myaccount.google.com/permissions.
 
 ## Désinstaller
 

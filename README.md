@@ -24,6 +24,18 @@ When a limit goes back to 0 %, you get a desktop notification. With an [ntfy](ht
 
 <p align="center"><img src="docs/status.png" width="700" alt="claude-usage --status"></p>
 
+## Google Calendar (optional)
+
+`claude-usage` can also put an event in your primary Google Calendar at each weekly reset, and at the 5-hour reset when the 5-hour limit hit 100 %. A phone synced with the account shows it too. The event moves if the reset time changes, and stays in the calendar once it has passed. Each one carries a private `claude-usage` property: an event without it is never changed or deleted.
+
+Once:
+
+1. In the Google Cloud console: create a project, enable the Google Calendar API, set up the consent screen (External) and publish it "In production". In "Testing", Google stops the access after 7 days.
+2. Create an OAuth client of type "Desktop app" and download its JSON file.
+3. Run `claude-usage --agenda path/to/client_secret.json` and allow access in the browser. Google warns that the app is not verified: it is your own app, choose "Advanced" and continue.
+
+The calendar sync only runs right after a successful usage call, and only calls Google when an event has to be added, moved or removed.
+
 ## Install
 
 Needs KDE Plasma 6, Rust to build the helper (`sudo pacman -S rust`), `curl`, and [Claude Code](https://claude.com/claude-code) logged in once (the widget reuses its login).
@@ -52,6 +64,10 @@ For phone notifications, install the ntfy app, subscribe to a long random topic,
 
 > [!NOTE]
 > The usage numbers come from the endpoint claude.ai uses for its own usage page (`/api/oauth/usage`). It is not a documented API and could change. When the access token has expired, the helper refreshes it the same way Claude Code does and writes it back to `~/.claude/.credentials.json`.
+
+## Privacy
+
+Everything stays on your PC. The helper only talks to Anthropic (the usage numbers), to your ntfy server if you set a topic, and to Google Calendar if you connected it. The Google token is kept in `~/.config/claude-usage/google.json`, readable by you only. The app only asks for access to events on calendars you own, and only writes, moves or deletes its own events. Nothing is sent anywhere else. To disconnect the calendar: delete that file and remove the app at https://myaccount.google.com/permissions.
 
 ## Uninstall
 
